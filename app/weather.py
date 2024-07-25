@@ -1,12 +1,27 @@
 import os
 import requests
 from dotenv import load_dotenv
-
+from datetime import datetime
 load_dotenv()
 WEATHER_TOKEN = os.getenv('WEATHER_TOKEN')
 
+#Функция форматирования даты "2024-07-19" в вид "19 июля"
+def format_date(date_str):
+    months = {
+        1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля',
+        5: 'мая', 6: 'июня', 7: 'июля', 8: 'августа',
+        9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря'
+    }
+    date = datetime.strptime(date_str, '%Y-%m-%d')
+    day = date.day
+    month = months[date.month]
+    form_date = f"{day} {month}"
+    return form_date
+
+
 #  Функция определения направление ветра по градусу
 def wind_direction(degrees):
+    degrees = int(degrees)
     if (degrees >= 0 and degrees <= 22.5) or (degrees > 337.5 and degrees <= 360):
         return "северное"
     elif degrees > 22.5 and degrees <= 67.5:
@@ -47,23 +62,23 @@ def get_forecast_weather(city): # Прогноз на 4 дня вперед
     forecast_message = "Прогноз погоды на 4 дня:\n\n"
 
     for day in forecast_days:
-        date = day['date']
+        date = format_date(day['date'])
         morning = day['hour'][8]  # 08:00
         afternoon = day['hour'][13]  # 13:00
         evening = day['hour'][20]  # 20:00
 
-        forecast_message += f"{date}\n"
+        forecast_message += f"📌{date}\n"
         forecast_message += (
-            f"<b>Утром 08:00</b>. Температура - {morning['temp_c']}°C. "
-            f"{morning['condition']['text']}. Ветер {morning['wind_dir']} {morning['wind_kph']} м/с\n"
+            f"<b>☀️Утром 08:00</b>. Температура - <b><i>{morning['temp_c']}°C</i></b>. "
+            f"{morning['condition']['text']}. Направление ветра - <i>{wind_direction(morning['wind_degree'])}</i> {morning['wind_kph']} м/с\n"
         )
         forecast_message += (
-            f"<b>Днем 13:00</b>. Температура - {afternoon['temp_c']}°C. "
-            f"{afternoon['condition']['text']}. Ветер {afternoon['wind_dir']} {afternoon['wind_kph']} м/с\n"
+            f"<b>🌤️Днем 13:00</b>. Температура - <b><i>{afternoon['temp_c']}°C</i></b>. "
+            f"{afternoon['condition']['text']}. Направление ветра - <i>{wind_direction(afternoon['wind_degree'])}</i> {afternoon['wind_kph']} м/с\n"
         )
         forecast_message += (
-            f"<b>Вечером 20:00</b>. Температура - {evening['temp_c']}°C. "
-            f"{evening['condition']['text']}. Ветер {evening['wind_dir']} {evening['wind_kph']} м/с\n"
+            f"<b>🌙Вечером 20:00</b>. Температура - <b><i>{evening['temp_c']}°C</i></b>. "
+            f"{evening['condition']['text']}. Направление ветра - <i>{wind_direction(evening['wind_degree'])}</i> {evening['wind_kph']} м/с\n"
         )
         forecast_message += "\n"
 
