@@ -9,6 +9,5 @@ weather_button = ReplyKeyboardMarkup(keyboard=[
 
 location_button = ReplyKeyboardMarkup(keyboard=[
     [KeyboardButton(text='Отправить местоположение', request_location=True)],
-    [KeyboardButton(text='Ввести город вручную')],
 ], resize_keyboard=True)
 

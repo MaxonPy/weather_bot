@@ -2,8 +2,10 @@ import os
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
+import aiohttp
 load_dotenv()
 WEATHER_TOKEN = os.getenv('WEATHER_TOKEN')
+
 
 #Функция форматирования даты "2024-07-19" в вид "19 июля"
 def format_date(date_str):
@@ -41,48 +43,52 @@ def wind_direction(degrees):
     else:
         return "некорректное значение градусов"  #
 
+
 # Функция для определения текущей погоды
-def get_current_weather(city):
+async def get_current_weather(city):
     url = f'http://api.weatherapi.com/v1/current.json?key={WEATHER_TOKEN}&q={city}&aqi=no&lang=ru'
-    response = requests.get(url)
-    data = response.json()
-    temp = data['current']['temp_c']
-    wind_speed = data['current']['wind_mph']
-    wind_deg = data['current']['wind_degree']
-    weat_description= data['current']['condition']['text']
-    return (f'Температура в вашем городе равна: {int(temp)}°С.\nНа улице {weat_description}.\n'
-                         f'Скорость ветра {wind_speed} м/c, направление: {wind_direction(wind_deg)}')
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.json()
+            temp = data['current']['temp_c']
+            wind_speed = data['current']['wind_mph']
+            wind_deg = data['current']['wind_degree']
+            weat_description = data['current']['condition']['text']
+            return (f'Температура в вашем городе равна: {int(temp)}°С.\nНа улице {weat_description}.\n'
+                    f'Скорость ветра {wind_speed} м/c, направление: {wind_direction(wind_deg)}')
+
 
 # Функция для определения прогноза на 4 дня
-def get_forecast_weather(city): # Прогноз на 4 дня вперед
+async def get_forecast_weather(city):
     url = f'http://api.weatherapi.com/v1/forecast.json?key={WEATHER_TOKEN}&q={city}&days=4&aqi=no&alerts=no&lang=ru'
-    response = requests.get(url)
-    data = response.json()
-    forecast_days = data['forecast']['forecastday']
-    forecast_message = "Прогноз погоды на 4 дня:\n\n"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.json()
+            forecast_days = data['forecast']['forecastday']
+            forecast_message = "Прогноз погоды на 4 дня:\n\n"
 
-    for day in forecast_days:
-        date = format_date(day['date'])
-        morning = day['hour'][8]  # 08:00
-        afternoon = day['hour'][13]  # 13:00
-        evening = day['hour'][20]  # 20:00
+        for day in forecast_days:
+            date = format_date(day['date'])
+            morning = day['hour'][8]  # 08:00
+            afternoon = day['hour'][13]  # 13:00
+            evening = day['hour'][20]  # 20:00
 
-        forecast_message += f"📌{date}\n"
-        forecast_message += (
-            f"<b>☀️Утром 08:00</b>. Температура - <b><i>{morning['temp_c']}°C</i></b>. "
-            f"{morning['condition']['text']}. Направление ветра - <i>{wind_direction(morning['wind_degree'])}</i> {morning['wind_kph']} м/с\n"
-        )
-        forecast_message += (
-            f"<b>🌤️Днем 13:00</b>. Температура - <b><i>{afternoon['temp_c']}°C</i></b>. "
-            f"{afternoon['condition']['text']}. Направление ветра - <i>{wind_direction(afternoon['wind_degree'])}</i> {afternoon['wind_kph']} м/с\n"
-        )
-        forecast_message += (
-            f"<b>🌙Вечером 20:00</b>. Температура - <b><i>{evening['temp_c']}°C</i></b>. "
-            f"{evening['condition']['text']}. Направление ветра - <i>{wind_direction(evening['wind_degree'])}</i> {evening['wind_kph']} м/с\n"
-        )
-        forecast_message += "\n"
+            forecast_message += f"📌{date}\n"
+            forecast_message += (
+                f"<b>☀️Утром 08:00</b>. Температура - <b><i>{morning['temp_c']}°C</i></b>. "
+                f"{morning['condition']['text']}. Направление ветра - <i>{wind_direction(morning['wind_degree'])}</i> {morning['wind_kph']} м/с\n"
+            )
+            forecast_message += (
+                f"<b>🌤️Днем 13:00</b>. Температура - <b><i>{afternoon['temp_c']}°C</i></b>. "
+                f"{afternoon['condition']['text']}. Направление ветра - <i>{wind_direction(afternoon['wind_degree'])}</i> {afternoon['wind_kph']} м/с\n"
+            )
+            forecast_message += (
+                f"<b>🌙Вечером 20:00</b>. Температура - <b><i>{evening['temp_c']}°C</i></b>. "
+                f"{evening['condition']['text']}. Направление ветра - <i>{wind_direction(evening['wind_degree'])}</i> {evening['wind_kph']} м/с\n"
+            )
+            forecast_message += "\n"
 
-    return forecast_message
+        return forecast_message
 
 
 
