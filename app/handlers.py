@@ -5,7 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram import Router, F
 
 import app.keyboards as kb
-from app.weather import get_current_weather, get_forecast_weather
+from app.weather import get_current_weather, get_forecast_weather, check_status
 from app.filters import CombinedFilterCurWeat, CombinedFilterForecastWeat
 
 router = Router()
@@ -15,9 +15,15 @@ class Reg(StatesGroup):
     city = State()
 
 
-# Старт
 @router.message(CommandStart())
 async def hello(message: Message, state: FSMContext):
+    '''
+    Обработчик команды /start. Отправляет приветствие пользователю.
+
+    Параметры:
+        message (Message): Объект сообщения.
+        state(FSMContext): Объект для управления состоянием бота
+    '''
     await state.clear()
     await message.answer('Привет, напиши город или отправь свое местоположение по кнопке ниже', reply_markup=kb.location_button)
     await state.set_state(Reg.city)
@@ -26,21 +32,42 @@ async def hello(message: Message, state: FSMContext):
 # Отлавливает состояние
 @router.message(Reg.city)
 async def process_city(message: Message, state: FSMContext):
-    if message.content_type == 'text':
-        await state.update_data(city=message.text)
-    elif message.content_type == 'location':
-        await state.update_data(city=f'{message.location.latitude},{message.location.longitude}')
-    else:
-        await message.answer('Пожалуйста отправьте город или местоположение')
-        return
+    '''
+    Отлавливает состояние, когда пользователь вводит
+    название города
 
-    await message.answer('Город установлен!', reply_markup=kb.weather_button)
-    await state.set_state(None)
+    Параметры:
+        message (Message): Объект сообщения.
+        state(FSMContext): Объект для управления состоянием бота
+    '''
+    if message.content_type == 'text':
+        city = message.text
+        if await check_status(city):
+            await state.update_data(city=city)
+            await message.answer('Город установлен!', reply_markup=kb.weather_button)
+            await state.set_state(None)
+        else:
+            await message.answer('Город не найден, введите другое название', reply_markup=kb.location_button)
+
+    else:
+        message.content_type == 'location'
+        location = message.location
+        await state.update_data(city=f'{location.latitude},{location.longitude}')
+        await message.answer('Местоположение установлено!', reply_markup=kb.weather_button)
+        await state.set_state(None)
 
 
 # Прогноз на 4 дня вперед
 @router.message(CombinedFilterForecastWeat())
 async def forecast(message: Message, state: FSMContext):
+    '''
+    Обработчик прогноза погоды. Отлавливает команду /forecast
+    или сообщение от пользователя "Прогноз на 4 дня"
+
+    Параметры:
+        message (Message): Объект сообщения.
+        state(FSMContext): Объект для управления состоянием бота
+    '''
     data = await state.get_data()
     city = data.get('city')
     if not city:
@@ -54,6 +81,14 @@ async def forecast(message: Message, state: FSMContext):
 # Текущая погода
 @router.message(CombinedFilterCurWeat())
 async def current(message: Message, state: FSMContext):
+    '''
+    Обработчик для текущей погоды. Отлавливает команду /current
+    или сообщение от пользователя "Текущая погода"
+
+    Параметры:
+        message (Message): Объект сообщения.
+        state(FSMContext): Объект для управления состоянием бота
+    '''
     data = await state.get_data()
     city = data.get('city')
     if not city:
@@ -66,5 +101,13 @@ async def current(message: Message, state: FSMContext):
 
 @router.message(Command('setlocation'))
 async def setlocation(message: Message, state:FSMContext):
+    '''
+    Обработчик для команды /setlocation.
+    Установка местоположения
+
+    Параметры:
+        message (Message): Объект сообщения.
+        state(FSMContext): Объект для управления состоянием бота
+    '''
     await message.answer('Введи город или отправь местоположение', reply_markup=kb.location_button)
     await state.set_state(Reg.city)

@@ -1,14 +1,23 @@
 import os
-import requests
 from dotenv import load_dotenv
 from datetime import datetime
 import aiohttp
+
 load_dotenv()
 WEATHER_TOKEN = os.getenv('WEATHER_TOKEN')
 
 
-#Функция форматирования даты "2024-07-19" в вид "19 июля"
-def format_date(date_str):
+def format_date(date_str: str) -> str:
+    '''
+    Функция для форматирования даты.
+    Преобразует даты из формата "2024-07-12" в "12 июля"
+
+    Параметры:
+        date_str(str): cтрока даты в формате "2024-07-12"
+
+    Возвращаемое значение:
+        form_date(str): отформатированная строка
+    '''
     months = {
         1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля',
         5: 'мая', 6: 'июня', 7: 'июля', 8: 'августа',
@@ -21,8 +30,14 @@ def format_date(date_str):
     return form_date
 
 
-#  Функция определения направление ветра по градусу
-def wind_direction(degrees):
+def wind_direction(degrees: int) -> str:
+    '''
+    Функция преобразования градуса направления ветра
+    в привычный для человека формат
+
+    :param degrees: значение в градусах
+    :return: направление ветра
+    '''
     degrees = int(degrees)
     if (degrees >= 0 and degrees <= 22.5) or (degrees > 337.5 and degrees <= 360):
         return "северное"
@@ -44,11 +59,34 @@ def wind_direction(degrees):
         return "некорректное значение градусов"  #
 
 
-# Функция для определения текущей погоды
-async def get_current_weather(city):
+async def check_status(city):
+    '''
+    Функия проверки корректности введеного города
+    :param city: название города
+    :return:
+        True - если город введен корректно
+        False - если город введен некорректно
+
+    '''
     url = f'http://api.weatherapi.com/v1/current.json?key={WEATHER_TOKEN}&q={city}&aqi=no&lang=ru'
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
+            status = response.status
+            if status == 200:
+                return True
+
+
+async def get_current_weather(city: str) -> str:
+    '''
+    Функция определения текущей погоды
+    :param city: название города
+    :return: строка с текущей погодой
+    '''
+    url = f'http://api.weatherapi.com/v1/current.json?key={WEATHER_TOKEN}&q={city}&aqi=no&lang=ru'
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                return 'Введите корректное название города'
             data = await response.json()
             temp = data['current']['temp_c']
             wind_speed = data['current']['wind_mph']
@@ -58,11 +96,17 @@ async def get_current_weather(city):
                     f'Скорость ветра {wind_speed} м/c, направление: {wind_direction(wind_deg)}')
 
 
-# Функция для определения прогноза на 4 дня
 async def get_forecast_weather(city):
+    '''
+    Функция для определения прогноза на 4 дня
+    :param city: название города
+    :return: строка с текущей погодой
+    '''
     url = f'http://api.weatherapi.com/v1/forecast.json?key={WEATHER_TOKEN}&q={city}&days=4&aqi=no&alerts=no&lang=ru'
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
+            if response.status != 200:
+                return 'Введите корректное название города'
             data = await response.json()
             forecast_days = data['forecast']['forecastday']
             forecast_message = "Прогноз погоды на 4 дня:\n\n"
@@ -89,7 +133,3 @@ async def get_forecast_weather(city):
             forecast_message += "\n"
 
         return forecast_message
-
-
-
-
