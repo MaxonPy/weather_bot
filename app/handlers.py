@@ -1,19 +1,58 @@
+import os
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, PreCheckoutQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram import Router, F
-
+from aiogram import Router, F, types, Bot
+from app.messages import MESSAGES
 import app.keyboards as kb
 from app.weather import get_current_weather, get_forecast_weather, check_status
 from app.filters import CombinedFilterCurWeat, CombinedFilterForecastWeat
+from dotenv import load_dotenv
+from aiogram.types.message import ContentType
 
+PRICE1 = types.LabeledPrice(label='Премиум подписка', amount=42000)
+PRICE2 = types.LabeledPrice(label='test', amount=123123)
 router = Router()
+
+load_dotenv()
+TG_TOKEN = os.getenv('TG_TOKEN')
+PAYMENTS_PROVIDER_TOKEN = os.getenv('PAYMENTS_PROVIDER_TOKEN')
+bot = Bot(token=TG_TOKEN)
 
 # FSM
 class Reg(StatesGroup):
     city = State()
 
+
+@router.message(Command('buy'))
+async def process_buy_command(message: Message):
+    if PAYMENTS_PROVIDER_TOKEN.split(':')[1] == 'TEST':
+        await message.answer(MESSAGES['pre_buy_demo_alert'])
+        await bot.send_invoice(message.chat.id,
+                               title=MESSAGES['tm_title'],
+                               description=MESSAGES['tm_description'],
+                               provider_token=PAYMENTS_PROVIDER_TOKEN,
+                               currency='rub',
+                               is_flexible=False,  # True если конечная цена зависит от способа доставки
+                               prices=[PRICE1],
+                               start_parameter='time-machine-example',
+                               payload='some-invoice-payload-for-our-internal-use'
+                               )
+
+# Подтверждение платежа(ok=True)
+@router.pre_checkout_query()
+async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
+# Обработчик получения успешного платежа
+@router.message(F.successful_payment)
+async def successful_payment(message: Message):
+    print("Платеж прошел успешно:")
+    for j, k in message.successful_payment:
+        print(f"{j} = {k}")
+    await message.answer("Спасибо за оплату! Ваш заказ обработан.")
 
 @router.message(CommandStart())
 async def hello(message: Message, state: FSMContext):
